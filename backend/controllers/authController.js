@@ -2,6 +2,7 @@ import { User } from "../models/Users.js";
 import bcryptjs from 'bcryptjs';
 import { generateVerificationToken } from "../utils/generateVerificationToken.js";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
+import { sendVerificationEmail } from "../mailtrap/emails.js";
 
 export const signup = async (req, res) => {
     console.log("Received signup request"); // Log start
@@ -41,6 +42,8 @@ export const signup = async (req, res) => {
         generateTokenAndSetCookie(res, user._id);
         console.log("Token generated and cookie set");
 
+        sendVerificationEmail(user.email, verificationToken)
+
         res.status(201).json({
             success: true,
             message: "User Created Successfully",
@@ -50,6 +53,10 @@ export const signup = async (req, res) => {
             },
         });
         console.log("Response sent successfully");
+
+
+
+
     } catch (error) {
         console.log("Error occurred:", error.message);
         return res.status(400).json({ success: false, message: error.message });
