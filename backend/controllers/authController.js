@@ -125,5 +125,11 @@ export const login = async (req,res) => {
 
 
 export const logout = async (req,res) => {
-    res.send("logout route");
+    try {
+        res.clearCookie("token");
+        res.status(202).json({success: true, message:"Logged out sucessfully."});
+    } catch (error) {
+        console.log("Error occurred in logging out", error.message);
+        return res.status(401).json({ success: false, message: error.message });
+    }
 }
