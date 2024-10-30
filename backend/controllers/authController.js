@@ -2,7 +2,7 @@ import { User } from "../models/Users.js";
 import bcryptjs from 'bcryptjs';
 import { generateVerificationToken } from "../utils/generateVerificationToken.js";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
-import { sendVerificationEmail } from "../mailtrap/emails.js";
+import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/emails.js";
 
 export const signup = async (req, res) => {
     console.log("Received signup request"); // Log start
@@ -83,8 +83,18 @@ export const verifyEmail = async(req, res) => {
         await user.save();
 
         await sendWelcomeEmail(user.email, user.name);
+        res.status(200).json({
+            success: true,
+            message: "Email verified sucessfully",
+            user: {
+                ...user._doc,
+                password: undefined,
+            },
+        });
+        console.log("Response sent successfully");
     } catch (error) {
-        
+        console.log("Error occurred in verifying email:", error.message);
+        return res.status(500).json({ success: false, message: error.message });
     }
 }
 
