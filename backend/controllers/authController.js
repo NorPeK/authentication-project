@@ -2,8 +2,8 @@ import { User } from "../models/Users.js"; // Import the User model for database
 import bcryptjs from 'bcryptjs'; // Import bcryptjs for password hashing
 import { generateVerificationToken } from "../utils/generateVerificationToken.js"; // Import token generation utility
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js"; // Import JWT generation and cookie-setting function
-import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/emails.js"; // Import email utilities for sending emails
-
+import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/emails.js"; // Import email utilities for sending emails
+import crypto from "crypto";
 
 export const signup = async (req, res) => {
     console.log("Received signup request"); // Log request start
@@ -162,6 +162,36 @@ export const logout = async (req,res) => {
     try {
         res.clearCookie("token");
         res.status(202).json({success: true, message:"Logged out sucessfully."});
+    } catch (error) {
+        console.log("Error occurred in logging out", error.message);
+        return res.status(401).json({ success: false, message: error.message });
+    }
+}
+
+
+
+export const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({email});
+
+        if(!user) {
+            return res.status(400).json({success: false , message: "User not found."});
+        }
+
+        const resetToken = crypto.randomBytes(20).toString("hex");
+        const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000 // 1 hour
+
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpireAt = resetTokenExpiresAt;
+
+        await user.save();
+
+        //send email
+        await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
+
+        res.status(203).json({success: true, message:"Password reset link sent to your email"});
+
     } catch (error) {
         console.log("Error occurred in logging out", error.message);
         return res.status(401).json({ success: false, message: error.message });
