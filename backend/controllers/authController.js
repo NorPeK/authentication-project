@@ -119,134 +119,196 @@ export const verifyEmail = async(req, res) => {
 
 
 
-export const login = async (req,res) => {
-    const {email, password} = req.body;
+// Define an asynchronous login function that takes in Express.js request (req) and response (res) objects
+export const login = async (req, res) => {
+    // Destructure email and password from the request body
+    const { email, password } = req.body;
 
     try {
-        const user = await User.findOne({email});
+        // Attempt to find a user in the database with the provided email
+        const user = await User.findOne({ email });
 
-        if(!user) {
-            return res.status(400).json({success: false , message: "invalid credentials"});
+        // If no user is found, return a 400 response with an error message
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Invalid credentials" });
         }
-        
+
+        // Compare the provided password with the stored hashed password using bcryptjs
         const isPasswordValid = await bcryptjs.compare(password, user.password);
 
-        if(!isPasswordValid) {
-            return res.status(400).json({success: false , message: "invalid credentials"});
+        // If the password does not match, return a 400 response with an error message
+        if (!isPasswordValid) {
+            return res.status(400).json({ success: false, message: "Invalid credentials" });
         }
 
+        // Generate a token for the user and set it in a cookie in the response
         generateTokenAndSetCookie(res, user._id);
 
+        // Update the user's last login timestamp
         user.lastLogin = new Date();
 
+        // Save the updated user data in the database
         await user.save();
 
+        // Send a success response back to the client, excluding the password for security reasons
         res.status(200).json({
             success: true,
             message: "Email verified successfully",
             user: {
-                ...user._doc,
-                password: undefined,
+                ...user._doc,  // Include all user fields except password
+                password: undefined,  // Remove the password field from the response
             },
         });
+        
+        // Log a message in the server console to confirm the response was sent
         console.log("Response sent successfully");
 
     } catch (error) {
+        // Log an error message if any issue occurs during the login process
         console.log("Error occurred in login process:", error.message);
+        
+        // Send a 500 server error response if there was a problem
         return res.status(500).json({ success: false, message: error.message });
     }
-}
+};
 
 
-export const logout = async (req,res) => {
+// Define an asynchronous logout function that takes Express.js request (req) and response (res) objects
+export const logout = async (req, res) => {
     try {
+        // Clear the authentication token cookie from the response to log the user out
         res.clearCookie("token");
-        res.status(202).json({success: true, message:"Logged out sucessfully."});
+
+        // Send a 202 Accepted status to indicate the logout action was successfully processed
+        res.status(202).json({ success: true, message: "Logged out successfully." });
     } catch (error) {
+        // Log any errors encountered during the logout process for server-side debugging
         console.log("Error occurred in logging out", error.message);
+
+        // Send a 401 Unauthorized status if there was an error, with an error message
         return res.status(401).json({ success: false, message: error.message });
     }
-}
+};
 
 
 
+
+// Define an asynchronous forgotPassword function that takes Express.js request (req) and response (res) objects
 export const forgotPassword = async (req, res) => {
+    // Destructure the email from the request body
     const { email } = req.body;
-    try {
-        const user = await User.findOne({email});
 
-        if(!user) {
-            return res.status(400).json({success: false , message: "User not found."});
+    try {
+        // Search for a user in the database by the provided email
+        const user = await User.findOne({ email });
+
+        // If no user is found, return a 400 response with an error message
+        if (!user) {
+            return res.status(400).json({ success: false, message: "User not found." });
         }
 
+        // Generate a random token using crypto library (20 bytes converted to hexadecimal string)
         const resetToken = crypto.randomBytes(20).toString("hex");
-        const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000 // 1 hour
 
+        // Set the token expiration to 1 hour from the current time
+        const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour in milliseconds
+
+        // Assign the generated token and its expiration time to the user's fields in the database
         user.resetPasswordToken = resetToken;
         user.resetPasswordExpireAt = resetTokenExpiresAt;
 
+        // Save the updated user with the reset token and expiration in the database
         await user.save();
 
-        //send email
+        // Send an email to the user with the reset link that includes the reset token
         await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
 
-        res.status(203).json({success: true, message:"Password reset link sent to your email"});
+        // Send a 203 Non-Authoritative Information status indicating email sent successfully
+        res.status(203).json({ success: true, message: "Password reset link sent to your email" });
 
     } catch (error) {
-        console.log("Error occurred in logging out", error.message);
+        // Log any errors encountered during the process for server-side debugging
+        console.log("Error occurred in forgot password process:", error.message);
+
+        // Send a 401 Unauthorized status if there was an error, with an error message
         return res.status(401).json({ success: false, message: error.message });
     }
-}
+};
 
 
 
-export const resetPassword = async(req, res) => {
-    const {token} = req.params;
-    const {password} = req.body;
+
+// Define an asynchronous resetPassword function that takes Express.js request (req) and response (res) objects
+export const resetPassword = async (req, res) => {
+    // Extract the token from the request parameters and the new password from the request body
+    const { token } = req.params;
+    const { password } = req.body;
 
     try {
+        // Search for a user with a matching reset token and an expiration date that is still in the future
         const user = await User.findOne({
             resetPasswordToken: token,
-            resetPasswordExpireAt: { $gt: Date.now()},
+            resetPasswordExpireAt: { $gt: Date.now() }, // Ensures the token is still valid
         });
 
-        if(!user) {
+        // If no user is found (either the token is invalid or expired), send a 400 response
+        if (!user) {
             return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
         }
 
-        //update password
+        // Hash the new password using bcryptjs with a salt round of 10
         const hashedPassword = await bcryptjs.hash(password, 10);
+
+        // Update the user's password in the database with the newly hashed password
         user.password = hashedPassword;
+
+        // Clear the reset token and its expiration fields to ensure they cannot be reused
         user.resetPasswordToken = undefined;
         user.resetPasswordExpireAt = undefined;
+
+        // Save the updated user data in the database
         await user.save();
 
+        // Send a success email notification to the user indicating the password was successfully reset
         await sendResetSuccessEmail(user.email);
 
-        res.status(200).json({success:true , message: "Password reset successful"});
+        // Respond with a 200 status code and a success message
+        res.status(200).json({ success: true, message: "Password reset successful" });
 
     } catch (error) {
-        console.log("Error in resetPassword" , error);
-        res.status(400).json({success: false , message: error.message});
+        // Log any errors encountered during the process for server-side debugging
+        console.log("Error in resetPassword", error);
+
+        // Send a 400 response if an error occurs, with an error message
+        res.status(400).json({ success: false, message: error.message });
     }
-}
+};
 
 
 
-export const checkAuth = async(req, res) => {
+// Define an asynchronous checkAuth function that takes Express.js request (req) and response (res) objects
+export const checkAuth = async (req, res) => {
 
     try {
+        // Find the user in the database using the user ID from the request (req.userId),
+        // selecting all fields except the password field
         const user = await User.findById(req.userId).select("-password");
-        if(!user){
-            return res.status(400).json({success: false , message: "User not found"});
+
+        // If no user is found, send a 400 response with an error message
+        if (!user) {
+            return res.status(400).json({ success: false, message: "User not found" });
         }
 
-        res.status(200).json({success: true, user});
+        // If the user is found, send a 200 response with user data (excluding password)
+        res.status(200).json({ success: true, user });
 
     } catch (error) {
-        console.log("Error in checkAuth" , error);
-        res.status(400).json({success: false , message: error.message});
+        // Log any errors encountered during the process for server-side debugging
+        console.log("Error in checkAuth", error);
+
+        // Send a 400 response if an error occurs, with an error message
+        res.status(400).json({ success: false, message: error.message });
     }
-}
+};
 
 
