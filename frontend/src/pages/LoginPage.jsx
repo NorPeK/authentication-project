@@ -3,16 +3,25 @@ import { motion } from 'framer-motion';
 import { Mail , Lock , Loader} from "lucide-react";
 import { Link } from 'react-router-dom';
 import Input from '../components/input';
+import { useAuthStore } from "../store/authStore";
+import { useNavigate } from "react-router-dom";
 
 const LoginPage = () => {
 
   const [email , setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const isLoading = false;
+  const navigate = useNavigate();
+  const { login, error, isLoading } = useAuthStore();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-  }
+    try {
+        await login(email, password);
+        navigate("/");  // Redirect after successful login
+    } catch (error) {
+        console.log(error);
+    }
+};
 
   return (
       <motion.div
@@ -45,13 +54,13 @@ const LoginPage = () => {
                 alue={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-
+              {error && <p>{error}</p>}
               <div className="flex items-center mb-6">
                 <Link to='/forgot-password' className="text-sm text-green-400 hover:underline">
                   Forgot password?
                 </Link>
               </div>
-
+              
               <motion.button className="mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600
                text-white font-bold rounded-lg shadow-lg hover:from-green-600
                hover:to-emerald-700 focus:outline-none focus:ring-2

@@ -34,6 +34,11 @@ export const useAuthStore = create((set) => ({
         set({error:error.response.data.message || "Error verfying email", isLoading:false});
         throw error;
     }
-   }
+   },
+
+   logout: async () => {
+    await axios.post(`${API_URL}/logout`);
+    set({ user: null, isAuthenticated: false });
+    },
 
 }));
