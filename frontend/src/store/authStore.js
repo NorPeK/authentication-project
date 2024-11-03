@@ -13,6 +13,8 @@ export const useAuthStore = create((set) => ({
    error:null,
    isLoading: false,
    isCheckingAuth: true,
+
+
    signup: async(email, password, name) => {
     set({isLoading:true , error:null});
     try {
@@ -23,6 +25,19 @@ export const useAuthStore = create((set) => ({
         throw error;
     }
    },
+
+
+   login: async (email, password) => {
+    set({isLoading:true , error:null});
+    try {
+        const response = await axios.post(`${API_URL}/login` , {email, password});
+        set({user:response.data.user, isAuthenticated:true , isLoading:true , error:null})
+    } catch (error) {
+        set({error:error.response?.data?.message || "invalid credentials", isLoading:false});
+        throw error;
+    }
+   },
+
 
    verifyEmail:async (code) => {
     set({ isLoading: true, error: null});
@@ -36,9 +51,9 @@ export const useAuthStore = create((set) => ({
     }
    },
 
+
    checkAuth: async () => {
     set({isCheckingAuth: true, error: null});
-
     try {
         const response = await axios.get(`${API_URL}/check-auth`)
         set({user: response.data.user, isAuthenticated: true, isCheckingAuth:false});
@@ -46,6 +61,7 @@ export const useAuthStore = create((set) => ({
         set({error: null, isCheckingAuth: false})
     }
    },
+
 
    logout: async () => {
     await axios.post(`${API_URL}/logout`);

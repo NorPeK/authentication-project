@@ -17,7 +17,6 @@ const LoginPage = () => {
     e.preventDefault();
     try {
         await login(email, password);
-        navigate("/");  // Redirect after successful login
     } catch (error) {
         console.log(error);
     }
@@ -51,16 +50,15 @@ const LoginPage = () => {
                 icon={Lock}
                 type="password"
                 placeholder= "password"
-                alue={password}
+                value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              {error && <p>{error}</p>}
               <div className="flex items-center mb-6">
                 <Link to='/forgot-password' className="text-sm text-green-400 hover:underline">
                   Forgot password?
                 </Link>
               </div>
-              
+              {error && <p className='text-red-500 font-semibold mb-2'>{error}</p>}
               <motion.button className="mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600
                text-white font-bold rounded-lg shadow-lg hover:from-green-600
                hover:to-emerald-700 focus:outline-none focus:ring-2
